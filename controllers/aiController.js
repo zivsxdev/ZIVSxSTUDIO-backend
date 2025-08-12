@@ -3,11 +3,34 @@ import OpenAI from "openai";
 import sql from "../configs/db.js";
 import axios from "axios"
 import { v2 as cloudinary} from "cloudinary"
+import fs from 'fs'
+import pdf from 'pdf-parse/lib/pdf-parse.js'
 
 const openai = new OpenAI({
   apiKey: process.env.GEMINI_API_KEY,
   baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/"
 });
+
+
+export const getUserCreations = async (req, res) => {
+  try {
+    const { userId } = req.auth;
+
+    const creations = await sql`
+      SELECT * FROM creations
+      WHERE user_id = ${userId}
+      ORDER BY created_at DESC
+    `;
+
+    res.json({ success: true, creations });
+  } catch (error) {
+    console.error(error.message);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+
+
 
 export const generateArticle = async (req, res) => {
   try {
@@ -139,7 +162,6 @@ export const generateImage = async (req, res) => {
       VALUES (${userId}, ${prompt}, ${secure_url}, 'image', ${publish ?? false })
     `;
 
-    
 
     res.json({ success: true, content: secure_url });
 
@@ -157,7 +179,7 @@ export const generateImage = async (req, res) => {
 export const removeImageBackground = async (req, res) => {
   try {
     const { userId } = req.auth;
-    const { image } = req.file;
+    const image  = req.file;
     const plan = req.plan;
   
 
@@ -168,11 +190,7 @@ export const removeImageBackground = async (req, res) => {
       });
     }
 
-    
- 
-
-
-  const {secure_url}= await cloudinary.uploader.upload(image.path{
+  const {secure_url}= await cloudinary.uploader.upload(image.path,{
     tranformation: [
       {
         effect: 'background_removal',
@@ -213,9 +231,6 @@ export const removeImageObject = async (req, res) => {
       });
     }
 
-    
- 
-
 
   const {public_id}= await cloudinary.uploader.upload(image.path)
    
@@ -232,6 +247,67 @@ export const removeImageObject = async (req, res) => {
     
 
     res.json({success: true, content:imageUrl});
+
+
+  } catch (error) {
+    console.error(error.message);
+    res.json({ success: false, message: error.message });
+  }
+};
+
+
+
+export const resumeReview = async (req, res) => {
+  try {
+    const { userId } = req.auth;
+    const resume = req.file
+    const plan = req.plan;
+  
+
+    if (plan !== "premium" ) {
+      return res.json({
+        success: false,
+        message: "This feature is only available for premium subscriptions"
+      });
+    }
+
+       if(resume.size > 5 * 1024 * 1024){
+        return res.json ({success:false, message: "Resume file size exceesa allwoed size (5MB)"})
+       }
+      
+       const dataBuffer = fs.readFileSync(resume.path)
+       const pdfData = await pdf(dataBuffer)
+
+       const prompt =`Review the following resume and provide constructive feedback on its strengths, weaknesses, and areas for improvement. Resume Content:\n\${pdfData.text}`
+ 
+
+
+      const response = await openai.chat.completions.create({
+      model: "gemini-2.0-flash",
+      messages: [
+        {
+          role: "user",
+          content: prompt
+        }
+      ],
+      temperature: 0.7,
+      max_tokens: 1000
+    });
+
+    const content = response.choices[0].message.content;
+
+
+
+
+
+    await sql`
+      INSERT INTO creations (user_id, prompt, content, type, )
+      VALUES (${userId}, Review the uploaded resume, ${content}, 'resume-review')
+    `;
+
+    
+
+    res.json({success: true, content});
 
 
   } catch (error) {
