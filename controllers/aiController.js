@@ -174,40 +174,34 @@ export const generateImage = async (req, res) => {
 
 
 
-
-
 export const removeImageBackground = async (req, res) => {
   try {
+    console.log('File received:', req.file);
     const { userId } = req.auth;
-    const image  = req.file;
+    const image = req.file;
     const plan = req.plan;
-  
 
-    if (plan !== "premium" ) {
+    if (plan !== "premium") {
       return res.json({
         success: false,
         message: "This feature is only available for premium subscriptions"
       });
     }
 
-  const {secure_url}= await cloudinary.uploader.upload(image.path,{
-    tranformation: [
-      {
-        effect: 'background_removal',
-        background_removal: 'remove_the_background'
-      }
-    ]
-  })
+    const { secure_url } = await cloudinary.uploader.upload(image.path, {
+      transformation: [
+        {
+          effect: 'background_removal'
+        }
+      ]
+    });
 
     await sql`
-      INSERT INTO creations (user_id, prompt, content, type, )
+      INSERT INTO creations (user_id, prompt, content, type)  
       VALUES (${userId}, 'Remove background from image', ${secure_url}, 'image')
     `;
 
-    
-
     res.json({ success: true, content: secure_url });
-
 
   } catch (error) {
     console.error(error.message);
@@ -220,7 +214,7 @@ export const removeImageObject = async (req, res) => {
   try {
     const { userId } = req.auth;
     const { object } = req.body;
-    const { image } = req.file;
+    const  image  = req.file;
     const plan = req.plan;
   
 
@@ -240,7 +234,7 @@ export const removeImageObject = async (req, res) => {
   })
 
     await sql`
-      INSERT INTO creations (user_id, prompt, content, type, )
+      INSERT INTO creations (user_id, prompt, content, type)
       VALUES (${userId}, ${`Removed ${object} from image`}, ${imageUrl}, 'image')
     `;
 

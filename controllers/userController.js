@@ -10,7 +10,7 @@ export const getUserCreations = async (req, res) => {
         res.json({ success: true, creation });
 
     } catch (error) {
-        res.json({ success: false, message: error, message });
+        res.json({ success: false, message: error.message });
     }
 }
 
@@ -62,7 +62,7 @@ export const toggleLikeCreation = async (req, res) => {
 
         const formattedArray =`{${updatedLikes.json(',')}}`
 
-        await sql`UPDATE creations SET likes = ${formattedArray}::text[] WHERE id = $ {id}`;
+        await sql`UPDATE creations SET likes = ${formattedArray}::text[] WHERE id = ${id}`;
 
         res.json({ success: true, creation });
 
