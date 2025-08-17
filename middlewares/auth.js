@@ -4,7 +4,7 @@ export const auth = async (req, res, next) => {
     try {
         // Fix 1: Use req.auth (not await req.auth())
         // Fix 2: Use userId (not userID)
-        const { userId, has } = req.auth;
+        const { userId, has } = req.auth();
         
         // Check if user is authenticated
         if (!userId) {

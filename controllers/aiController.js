@@ -6,15 +6,18 @@ import { v2 as cloudinary} from "cloudinary"
 import fs from 'fs'
 import pdf from 'pdf-parse/lib/pdf-parse.js'
 
+
 const openai = new OpenAI({
   apiKey: process.env.GEMINI_API_KEY,
   baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/"
 });
 
 
+
+
 export const getUserCreations = async (req, res) => {
   try {
-    const { userId } = req.auth;
+    const { userId } = req.auth();
 
     const creations = await sql`
       SELECT * FROM creations
@@ -34,7 +37,7 @@ export const getUserCreations = async (req, res) => {
 
 export const generateArticle = async (req, res) => {
   try {
-    const { userId } = req.auth;
+    const { userId } = req.auth();
     const { prompt, length } = req.body;
     const plan = req.plan;
     const free_usage = req.free_usage;
@@ -83,7 +86,7 @@ export const generateArticle = async (req, res) => {
 
 export const generateBlogTitle = async (req, res) => {
   try {
-    const { userId } = req.auth;
+    const { userId } = req.auth();
     const { prompt } = req.body;
     const plan = req.plan;
     const free_usage = req.free_usage;
@@ -132,7 +135,7 @@ export const generateBlogTitle = async (req, res) => {
 
 export const generateImage = async (req, res) => {
   try {
-    const { userId } = req.auth;
+    const { userId } = req.auth();
     const { prompt, publish } = req.body;
     const plan = req.plan;
     const free_usage = req.free_usage;
@@ -146,7 +149,7 @@ export const generateImage = async (req, res) => {
 
     
   const formData = new FormData()
-  formData.append('prompt' , prompt)
+  formData.append('prompt', prompt)
   const {data} = await axios.post("https://clipdrop-api.co/text-to-image/v1", formData, {
     headers: {'x-api-key': process.env.CLIPDROP_API_KEY,},
     responseType: "arraybuffer",
@@ -176,12 +179,12 @@ export const generateImage = async (req, res) => {
 
 export const removeImageBackground = async (req, res) => {
   try {
-    console.log('File received:', req.file);
-    const { userId } = req.auth;
+
+    const { userId } = req.auth();
     const image = req.file;
     const plan = req.plan;
 
-    if (plan !== "premium") {
+    if (plan !== 'premium') {
       return res.json({
         success: false,
         message: "This feature is only available for premium subscriptions"
@@ -191,14 +194,15 @@ export const removeImageBackground = async (req, res) => {
     const { secure_url } = await cloudinary.uploader.upload(image.path, {
       transformation: [
         {
-          effect: 'background_removal'
+          effect: 'background_removal',
+          background_removal: 'remove_the_background'
         }
       ]
     });
 
     await sql`
       INSERT INTO creations (user_id, prompt, content, type)  
-      VALUES (${userId}, 'Remove background from image', ${secure_url}, 'image')
+      VALUES (${userId},  'Remove background from image', ${secure_url}, 'image')
     `;
 
     res.json({ success: true, content: secure_url });
@@ -212,7 +216,7 @@ export const removeImageBackground = async (req, res) => {
 
 export const removeImageObject = async (req, res) => {
   try {
-    const { userId } = req.auth;
+    const { userId } = req.auth();
     const { object } = req.body;
     const  image  = req.file;
     const plan = req.plan;
@@ -272,7 +276,7 @@ export const resumeReview = async (req, res) => {
        const dataBuffer = fs.readFileSync(resume.path)
        const pdfData = await pdf(dataBuffer)
 
-       const prompt =`Review the following resume and provide constructive feedback on its strengths, weaknesses, and areas for improvement. Resume Content:\n\${pdfData.text}`
+       const prompt =`Review the following resume and provide constructive feedback on its strengths, weaknesses, and areas for improvement. Resume Content:\n\n${pdfData.text}`
  
 
 
